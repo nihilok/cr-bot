@@ -32,7 +32,6 @@ struct FileIn {
 #[derive(Debug)]
 struct File {
     filename: String,
-    content: String,
     patch: String,
 }
 
@@ -96,7 +95,7 @@ async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
         .model("gpt-4-1106-preview")
         .messages([
             ChatCompletionRequestSystemMessageArgs::default()
-                .content("You are a code reviewer. You provide your response in markdown, using a heading (`## ...`) for each file reviewed, normal text for your comment, and, potentially, code blocks for code snippets relating to suggested changes (```language...```). You should use line numbers as points of reference.  You should focus only on the changes from the diff; if the rest of the file is included, it is for context only; you can comment on the rest of the file if there are serious implications to be considered; otherwise, this extra file content should be ignored.")
+                .content("You are a code reviewer. You provide your response in markdown, using a heading (`## ...`) for each file reviewed, normal text for your comment, and, potentially, code blocks for code snippets relating to suggested changes (```language...```).")
                 .build()?
                 .into(),
             ChatCompletionRequestUserMessageArgs::default()
@@ -123,31 +122,23 @@ async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
             Ok(response) => {
                 response.choices.iter().for_each(|chat_choice| {
                     if let Some(ref content) = chat_choice.delta.content {
-                        write!(lock, "{}", content).unwrap();
+                        if let Err(e) = write!(lock, "{}", content) {
+                            eprintln!("ERROR WRITING TO STDOUT: {}", e);
+                            process::exit(1)
+                        }
                     }
                 });
             }
             Err(err) => {
-                writeln!(lock, "error: {err}").unwrap();
+                if let Err(e) = writeln!(lock, "error: {err}") {
+                    return Err(e.into())
+                }
             }
         }
         stdout().flush()?;
     }
 
     Ok(())
-}
-
-async fn fetch_file_content(owner: &str, repo: &str, file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
-    let url = format!("https://api.github.com/repos/{}/{}/contents/{}", owner, repo, file_path);
-
-    let content: String = client.get(&url)
-        .header("User-Agent", "request")
-        .header("Accept", "application/vnd.github.v3.raw")
-        .send().await?
-        .text().await?;
-
-    Ok(content)
 }
 
 async fn get_pr_info(owner: &str, repo: &str, pr_number: u32) -> Result<PRInfo, Box<dyn std::error::Error>> {
@@ -164,13 +155,10 @@ async fn get_pr_info(owner: &str, repo: &str, pr_number: u32) -> Result<PRInfo, 
 
     for file_info in files_info {
 
-        let file_content = fetch_file_content(owner, repo, &file_info.filename).await?;
-
         files.push(
             File {
                 filename: file_info.filename,
                 patch: file_info.patch,
-                content: file_content
             }
         );
     }
@@ -206,27 +194,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if args.owner.is_none() {
+    if args.owner.is_none() && args.repo.is_none() && args.pr.is_none() {
         eprintln!("Required positional args not provided. Run with --help for usage.");
         process::exit(1);
     }
 
-    let owner = args.owner.unwrap();
+    let owner = args.owner.expect("Checked is none above");
 
     // Gets a value for repo if supplied by user
-    let repo = args.repo.unwrap();
+    let repo = args.repo.expect("Checked is none above");
 
     // Gets a value for pr if supplied by user
-    let pr_number = args.pr.unwrap();
+    let pr_number = args.pr.expect("Checked is none above");
     println!("Getting PR data: {}/{} #{}", owner, repo, pr_number);
     match get_pr_info(&owner, &repo, pr_number).await {
         Ok(pr_info) => {
-            // print_review_comments(pr_info.number, comments);
-            // Iterate over each file in the PR and fetch its content
             let mut output = String::new();
             for file in pr_info.files {
                 append_with_newline(&format!("-- CHANGED FILE -- {}", &file.filename), &mut output);
-                append_with_newline(&file.content, &mut output);
                 append_with_newline(&file.patch, &mut output);
             }
             println!("Analysing changes...\n");

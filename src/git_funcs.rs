@@ -90,15 +90,19 @@ pub async fn get_pr_info(
 
     let response = request.send().await?;
     if response.status() != StatusCode::OK {
-        let error_message = if response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::UNAUTHORIZED {
+        let error_message = if response.status() == StatusCode::NOT_FOUND
+            || response.status() == StatusCode::UNAUTHORIZED
+        {
             format!("GitHub API request failed with status: {}. \nIf this is a private repo, the 'GH_PR_TOKEN' environment variable must be set.", response.status())
         } else {
-            format!("GitHub API request failed with status: {}.", response.status())
+            format!(
+                "GitHub API request failed with status: {}.",
+                response.status()
+            )
         };
 
-        return Err(error_message.into())
+        return Err(error_message.into());
     }
-
 
     let files_info: Vec<File> = response.json().await?;
 

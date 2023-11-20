@@ -92,9 +92,17 @@ pub async fn get_pr_info(
 
     if response.status() != StatusCode::OK {
         eprintln!(
-            "{}",
-            "Error: GitHub API request failed. If this is a private repo, GH_PR_TOKEN environment variable must be set.".red()
+            "{} {}",
+            "Error: GitHub API request failed. HTTP Status:".red(),
+            response.status().as_str().red()
         );
+        if response.status() == reqwest::StatusCode::NOT_FOUND
+            || response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            eprintln!(
+                "{}",
+                "If this is a private repo, GH_PR_TOKEN environment variable must be set.".red()
+            );
+        }
         std::process::exit(1);
     }
 

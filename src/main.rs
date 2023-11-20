@@ -3,11 +3,6 @@ mod git_funcs;
 mod utils;
 
 use clap::Parser;
-use colored::*;
-use futures::StreamExt;
-use reqwest;
-use serde::Deserialize;
-use std::io::Write;
 use std::process;
 use utils::Args;
 

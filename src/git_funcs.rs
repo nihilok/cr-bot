@@ -1,6 +1,9 @@
 use colored::Colorize;
 use git2::{DiffFormat, DiffOptions, Repository};
+use reqwest::header::AUTHORIZATION;
+use reqwest::StatusCode;
 use serde::Deserialize;
+use std::env;
 
 #[derive(Deserialize, Debug)]
 pub struct File {
@@ -75,13 +78,29 @@ pub async fn get_pr_info(
         owner, repo, pr_number
     );
 
-    let files_info: Vec<File> = client
-        .get(&pr_url)
-        .header("User-Agent", "request")
-        .send()
-        .await?
-        .json()
-        .await?;
+    // Try to get the Bearer token from the environment variable
+    let token = env::var("GH_PR_TOKEN");
+    let request = client.get(&pr_url).header("User-Agent", "request");
+
+    // If the token exists, add the Authorization header
+    let request = match token {
+        Ok(token) => request.header(AUTHORIZATION, format!("Bearer {}", token)),
+        Err(_) => request,
+    };
+
+    let response = request.send().await?;
+    if response.status() != StatusCode::OK {
+        let error_message = if response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::UNAUTHORIZED {
+            format!("GitHub API request failed with status: {}. \nIf this is a private repo, the 'GH_PR_TOKEN' environment variable must be set.", response.status())
+        } else {
+            format!("GitHub API request failed with status: {}.", response.status())
+        };
+
+        return Err(error_message.into())
+    }
+
+
+    let files_info: Vec<File> = response.json().await?;
 
     let mut files = Vec::new();
 

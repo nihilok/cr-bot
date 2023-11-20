@@ -17,9 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let prompt = format!("\n{}", diff);
         let review_comments = ai_funcs::code_review(prompt).await;
         match review_comments {
-            Ok(_) => {
-                process::exit(0);
-            }
+            Ok(_) => return Ok(()),
             Err(e) => {
                 eprintln!("Failed to analyse code: {}", e);
                 process::exit(1);

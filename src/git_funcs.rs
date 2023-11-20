@@ -89,21 +89,21 @@ pub async fn get_pr_info(
     };
 
     let response = request.send().await?;
-
+    let mut error= String::new();
     if response.status() != StatusCode::OK {
-        eprintln!(
+        error.push_str(&format!(
             "{} {}",
-            "Error: GitHub API request failed. HTTP Status:".red(),
-            response.status().as_str().red()
-        );
+            "GitHub API request failed. HTTP Status:",
+            response.status()
+        ));
         if response.status() == reqwest::StatusCode::NOT_FOUND
             || response.status() == reqwest::StatusCode::UNAUTHORIZED {
-            eprintln!(
+            error.push_str(&format!(
                 "{}",
-                "If this is a private repo, GH_PR_TOKEN environment variable must be set.".red()
-            );
+                "\nIf this is a private repo, GH_PR_TOKEN environment variable must be set."
+            ));
         }
-        std::process::exit(1);
+        return Err(error.into())
     }
 
     let files_info: Vec<File> = response.json().await?;

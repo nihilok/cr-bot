@@ -5,6 +5,8 @@ mod utils;
 use clap::Parser;
 use std::process;
 use utils::Args;
+use colored::Colorize;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -59,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Err(e) => {
-            eprintln!("Failed to get PR info: {}", e);
+            eprintln!("{}", &format!("Failed to get PR info: {}", e).red());
             process::exit(1);
         }
     }

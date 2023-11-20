@@ -12,7 +12,7 @@ use git2::{DiffFormat, Repository, DiffOptions};
 use colored::*;
 
 #[derive(Debug, Parser)]
-#[command(author, version, long_about = "Dynamic DNS Client")]
+#[command(author, version, long_about = "AI Code Review Tool")]
 pub struct Args {
     pub owner: Option<String>,
     pub repo: Option<String>,

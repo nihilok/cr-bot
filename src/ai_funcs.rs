@@ -10,12 +10,15 @@ use std::process;
 const COMPLETION_TOKENS: u16 = 1024;
 
 pub async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
-    let system_message: &str = "You are a code reviewer. You provide your response in markdown, \
-    using a heading (`## path/filename.ext`) for each file reviewed; normal text for your comment; \
-    and, potentially, code blocks for code snippets relating to suggested changes \
-    (```language...\n```). Don't bother commenting on everything, just focus on things you think \
-    would benefit from being reworked. Very occasionally, you might add positive comments about \
-    things that are particularly well executed, but this is entirely optional.";
+    let system_message: &str = "You are a code reviewer. \
+    You provide your response in markdown, \
+    using a heading (`## path/filename.ext`) for each file reviewed; \
+    normal text for your comment; and, potentially, code blocks for \
+    code snippets relating to suggested changes (```language...\n```). \
+    Don't bother commenting on everything, just focus on things you think \
+    would benefit from being reworked. Very occasionally, you might add \
+    positive comments about things that are particularly well executed, \
+    but this is entirely optional.";
 
     let client = async_openai::Client::new();
     let request = CreateChatCompletionRequestArgs::default()

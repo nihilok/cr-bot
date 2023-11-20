@@ -2,10 +2,8 @@ use async_openai::types::{
     ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestSystemMessageArgs,
     ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
-use colored::Colorize;
 use futures::StreamExt;
 use std::io::{stdout, Write};
-use std::process;
 
 const COMPLETION_TOKENS: u16 = 1024;
 
@@ -46,20 +44,17 @@ pub async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error
 
     let mut stream = client.chat().create_stream(request).await?;
 
-    println!("# CRbot says:\n");
     let mut lock = stdout().lock();
     while let Some(result) = stream.next().await {
         match result {
             Ok(response) => {
-                response.choices.iter().for_each(|chat_choice| {
+                for chat_choice in response.choices.iter() {
                     if let Some(ref content) = chat_choice.delta.content {
                         if let Err(e) = write!(lock, "{}", content) {
-                            eprintln!("{} {}", "ERROR:".red(), e);
-                            let _ = lock.flush();
-                            process::exit(1);
+                            return Err(e.into());
                         }
                     }
-                });
+                }
             }
             Err(err) => return Err(err.into()),
         }

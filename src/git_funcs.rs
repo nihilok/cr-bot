@@ -89,22 +89,16 @@ pub async fn get_pr_info(
     };
 
     let response = request.send().await?;
-    let mut error= String::new();
     if response.status() != StatusCode::OK {
-        error.push_str(&format!(
-            "{} {}",
-            "GitHub API request failed. HTTP Status:",
-            response.status()
-        ));
-        if response.status() == reqwest::StatusCode::NOT_FOUND
-            || response.status() == reqwest::StatusCode::UNAUTHORIZED {
-            error.push_str(&format!(
-                "{}",
-                "\nIf this is a private repo, GH_PR_TOKEN environment variable must be set."
-            ));
-        }
-        return Err(error.into())
+        let error_message = if response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::UNAUTHORIZED {
+            format!("GitHub API request failed with status: {}. \nIf this is a private repo, the 'GH_PR_TOKEN' environment variable must be set.", response.status())
+        } else {
+            format!("GitHub API request failed with status: {}.", response.status())
+        };
+
+        return Err(error_message.into())
     }
+
 
     let files_info: Vec<File> = response.json().await?;
 

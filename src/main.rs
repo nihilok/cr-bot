@@ -1,15 +1,15 @@
-use std::process;
-use reqwest;
-use serde::Deserialize;
 use async_openai::types::{
     ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestSystemMessageArgs,
     ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
-use clap::{command, arg, Parser};
-use std::io::{stdout, Write};
-use futures::StreamExt;
-use git2::{DiffFormat, Repository, DiffOptions};
+use clap::{arg, command, Parser};
 use colored::*;
+use futures::StreamExt;
+use git2::{DiffFormat, DiffOptions, Repository};
+use reqwest;
+use serde::Deserialize;
+use std::io::{stdout, Write};
+use std::process;
 
 #[derive(Debug, Parser)]
 #[command(author, version, long_about = "AI Code Review Tool")]
@@ -24,21 +24,15 @@ pub struct Args {
 const COMPLETION_TOKENS: u16 = 1024;
 
 #[derive(Deserialize, Debug)]
-struct FileIn {
-    filename: String,
-    patch: String,
-}
-
-#[derive(Debug)]
 struct File {
     filename: String,
     patch: String,
+    status: String,
 }
 
 struct PRInfo {
     files: Vec<File>,
 }
-
 
 fn get_git_diff_patch() -> Result<String, git2::Error> {
     let repo = Repository::open(".")?;
@@ -48,7 +42,10 @@ fn get_git_diff_patch() -> Result<String, git2::Error> {
 
     let statuses = repo.statuses(Some(&mut opts))?;
     let mut warned = false;
-    for status in statuses.iter().filter(|s| s.status() != git2::Status::CURRENT) {
+    for status in statuses
+        .iter()
+        .filter(|s| s.status() != git2::Status::CURRENT)
+    {
         let message = format!(
             "Warning: uncommitted changes detected in file: {}",
             status.path().unwrap_or("")
@@ -95,7 +92,7 @@ async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
         .model("gpt-4-1106-preview")
         .messages([
             ChatCompletionRequestSystemMessageArgs::default()
-                .content("You are a code reviewer. You provide your response in markdown, using a heading (`## ...`) for each file reviewed, normal text for your comment, and, potentially, code blocks for code snippets relating to suggested changes (```language...```).")
+                .content("You are a code reviewer. You provide your response in markdown, using a heading (`## path/filename.ext`) for each file reviewed; normal text for your comment; and, potentially, code blocks for code snippets relating to suggested changes (```language...```). Don't bother commenting on everything, just focus on things you think would benefit from being reworked. Very occasionally, you might add positive comments about things that are particularly well executed, but this is entirely optional.")
                 .build()?
                 .into(),
             ChatCompletionRequestUserMessageArgs::default()
@@ -131,7 +128,7 @@ async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
             }
             Err(err) => {
                 if let Err(e) = writeln!(lock, "error: {err}") {
-                    return Err(e.into())
+                    return Err(e.into());
                 }
             }
         }
@@ -141,31 +138,32 @@ async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn get_pr_info(owner: &str, repo: &str, pr_number: u32) -> Result<PRInfo, Box<dyn std::error::Error>> {
-
+async fn get_pr_info(
+    owner: &str,
+    repo: &str,
+    pr_number: u32,
+) -> Result<PRInfo, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
-    let pr_url = format!("https://api.github.com/repos/{}/{}/pulls/{}/files", owner, repo, pr_number);
+    let pr_url = format!(
+        "https://api.github.com/repos/{}/{}/pulls/{}/files",
+        owner, repo, pr_number
+    );
 
-    let files_info: Vec<FileIn> = client.get(&pr_url)
+    let files_info: Vec<File> = client
+        .get(&pr_url)
         .header("User-Agent", "request")
-        .send().await?
-        .json().await?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     let mut files = Vec::new();
 
     for file_info in files_info {
-
-        files.push(
-            File {
-                filename: file_info.filename,
-                patch: file_info.patch,
-            }
-        );
+        files.push(file_info);
     }
 
-    Ok(PRInfo {
-        files,
-    })
+    Ok(PRInfo { files })
 }
 
 fn append_with_newline(new_str: &str, buffer: &mut String) {
@@ -214,12 +212,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(pr_info) => {
             let mut output = String::new();
             for file in pr_info.files {
-                append_with_newline(&format!("-- CHANGED FILE -- {}", &file.filename), &mut output);
+                append_with_newline(
+                    &format!("{} -- {}", &file.filename, &file.status),
+                    &mut output,
+                );
                 append_with_newline(&file.patch, &mut output);
             }
             println!("Analysing changes...\n");
-            let review_comments = code_review(output).await;
-            match review_comments {
+            let review_result = code_review(output).await;
+            match review_result {
                 Ok(_) => {
                     println!("\n\n== END OF COMMENTS ==");
                 }

@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0.192", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros"] }
 base64 = "0.21.5"
 async-openai = "0.16.3"
 clap = { version = "4.4.8", features = ["derive"] }

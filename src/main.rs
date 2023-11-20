@@ -3,10 +3,9 @@ mod git_funcs;
 mod utils;
 
 use clap::Parser;
+use colored::Colorize;
 use std::process;
 use utils::Args;
-use colored::Colorize;
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

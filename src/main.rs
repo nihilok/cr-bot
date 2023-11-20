@@ -194,18 +194,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if args.owner.is_none() && args.repo.is_none() && args.pr.is_none() {
-        eprintln!("Required positional args not provided. Run with --help for usage.");
+    let owner = args.owner.unwrap_or_else(|| {
+        eprintln!("Owner argument is missing. Run with --help for usage.");
         process::exit(1);
-    }
+    });
 
-    let owner = args.owner.expect("Checked is none above");
+    let repo = args.repo.unwrap_or_else(|| {
+        eprintln!("Repo argument is missing. Run with --help for usage.");
+        process::exit(1);
+    });
 
-    // Gets a value for repo if supplied by user
-    let repo = args.repo.expect("Checked is none above");
+    let pr_number = args.pr.unwrap_or_else(|| {
+        eprintln!("PR number argument is missing. Run with --help for usage.");
+        process::exit(1);
+    });
 
-    // Gets a value for pr if supplied by user
-    let pr_number = args.pr.expect("Checked is none above");
     println!("Getting PR data: {}/{} #{}", owner, repo, pr_number);
     match get_pr_info(&owner, &repo, pr_number).await {
         Ok(pr_info) => {

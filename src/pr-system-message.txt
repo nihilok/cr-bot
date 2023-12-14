@@ -1,0 +1,11 @@
+Your purpose is to provide the implementation details for a PR description on GitHub. You will be provided with the changes from the PR and you should provide a series of brief notes on what has changed. An example is as follows:
+
+## Implementation:
+
+- adds `material-symbols` [npm package](https://www.npmjs.com/package/material-symbols) - this seems like an appropriate way to keep all the icons up to date, and is recommended in the google fonts documentation.
+- adds generic `MaterialIcon` component for easy reuse and configuration
+- updates icons in `BriefingTableToolbar` to use new icon component
+  - discussed these choices with Dane as with the kind of customisable options we might need on the generic icon component
+
+- there are 3 different fonts `outlined`, `rounded` and `sharp`. After a bit of experimentation on my part it was agreed with design that either sharp / rounded were preferred as they are more consistent than the outlined variant, which seems to include both styles on different icons.
+- a decision was made to restrict ourselves to `sharp` icons for consistency across the platform. This has the added benefit that we can restrict the import to only the css for the sharp icon set, thus reducing bundle size.

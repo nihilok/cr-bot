@@ -11,7 +11,7 @@ const COMPLETION_TOKENS: u16 = 1024;
 const SYSTEM_MESSAGE: &'static str = include_str!("system-message.txt");
 const PR_SYSTEM_MESSAGE: &'static str = include_str!("pr-system-message.txt");
 
-const MODEL: &'static str = "gpt-4-1106-preview";
+const MODEL: &'static str = "gpt-4o";
 
 async fn print_stream(
     stream: &mut ChatCompletionResponseStream,

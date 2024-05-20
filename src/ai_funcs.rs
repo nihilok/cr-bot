@@ -1,6 +1,7 @@
 use async_openai::types::{
     ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestSystemMessageArgs,
-    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+    ChatCompletionRequestUserMessageArgs, ChatCompletionResponseStream,
+    CreateChatCompletionRequestArgs,
 };
 use futures::StreamExt;
 use std::io::{stdout, Write};
@@ -12,6 +13,27 @@ const PR_SYSTEM_MESSAGE: &'static str = include_str!("pr-system-message.txt");
 
 const MODEL: &'static str = "gpt-4-1106-preview";
 
+async fn print_stream(
+    stream: &mut ChatCompletionResponseStream,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut lock = stdout().lock();
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(response) => {
+                for chat_choice in response.choices.iter() {
+                    if let Some(ref content) = chat_choice.delta.content {
+                        if let Err(e) = write!(lock, "{}", content) {
+                            return Err(e.into());
+                        }
+                    }
+                }
+            }
+            Err(err) => return Err(err.into()),
+        }
+        stdout().flush()?;
+    }
+    Ok(())
+}
 pub async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
     let client = async_openai::Client::new();
     let request = CreateChatCompletionRequestArgs::default()
@@ -39,31 +61,14 @@ pub async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error
 
     let mut stream = client.chat().create_stream(request).await?;
 
-    let mut lock = stdout().lock();
-    while let Some(result) = stream.next().await {
-        match result {
-            Ok(response) => {
-                for chat_choice in response.choices.iter() {
-                    if let Some(ref content) = chat_choice.delta.content {
-                        if let Err(e) = write!(lock, "{}", content) {
-                            return Err(e.into());
-                        }
-                    }
-                }
-            }
-            Err(err) => return Err(err.into()),
-        }
-        stdout().flush()?;
-    }
-
-    Ok(())
+    print_stream(&mut stream).await
 }
 
 pub async fn implementation_details(output: String) -> Result<(), Box<dyn std::error::Error>> {
     let client = async_openai::Client::new();
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(COMPLETION_TOKENS)
-        .model("gpt-4-1106-preview")
+        .model(MODEL)
         .messages([
             ChatCompletionRequestSystemMessageArgs::default()
                 .content(PR_SYSTEM_MESSAGE)
@@ -88,22 +93,5 @@ pub async fn implementation_details(output: String) -> Result<(), Box<dyn std::e
 
     let mut stream = client.chat().create_stream(request).await?;
 
-    let mut lock = stdout().lock();
-    while let Some(result) = stream.next().await {
-        match result {
-            Ok(response) => {
-                for chat_choice in response.choices.iter() {
-                    if let Some(ref content) = chat_choice.delta.content {
-                        if let Err(e) = write!(lock, "{}", content) {
-                            return Err(e.into());
-                        }
-                    }
-                }
-            }
-            Err(err) => return Err(err.into()),
-        }
-        stdout().flush()?;
-    }
-
-    Ok(())
+    print_stream(&mut stream).await
 }

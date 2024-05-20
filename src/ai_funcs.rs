@@ -1,8 +1,10 @@
-use async_openai::config::OpenAIConfig;
-use async_openai::types::{
-    ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestSystemMessageArgs,
-    ChatCompletionRequestUserMessageArgs, ChatCompletionResponseStream,
-    CreateChatCompletionRequestArgs,
+use async_openai::{
+    config,
+    types::{
+        ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestSystemMessageArgs,
+        ChatCompletionRequestUserMessageArgs, ChatCompletionResponseStream,
+        CreateChatCompletionRequestArgs,
+    },
 };
 use futures::StreamExt;
 use std::env;
@@ -18,10 +20,12 @@ const MODEL: &'static str = "gpt-4o";
 const OPENAI_API_KEY_VAR_NAME: &'static str = "CR_BOT_OPENAI_API_KEY";
 
 /// Helper function to create an OpenAI client using the appropriate API key
-fn get_client() -> async_openai::Client<OpenAIConfig> {
+fn get_client() -> async_openai::Client<config::OpenAIConfig> {
     let token = env::var(OPENAI_API_KEY_VAR_NAME);
     match token {
-        Ok(token) => async_openai::Client::with_config(OpenAIConfig::new().with_api_key(token)),
+        Ok(token) => {
+            async_openai::Client::with_config(config::OpenAIConfig::new().with_api_key(token))
+        }
         Err(_) => {
             println!("No '{}' environment variable supplied; falling back to default 'OPENAI_API_KEY' environment variable.", OPENAI_API_KEY_VAR_NAME);
             async_openai::Client::new()

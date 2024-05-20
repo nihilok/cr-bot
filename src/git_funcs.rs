@@ -95,7 +95,7 @@ pub async fn get_pr(
     let files_request = client.get(&files_url).header("User-Agent", "request");
 
     // If the token exists, add the Authorization header
-    let pr_request = match token.clone() {
+    let pr_request = match &token {
         Ok(token) => pr_request.header(AUTHORIZATION, format!("Bearer {}", token)),
         Err(_) => pr_request,
     };

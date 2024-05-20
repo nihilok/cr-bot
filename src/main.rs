@@ -41,10 +41,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     println!("Analysing PR changes: {}/{} #{}\n", owner, repo, pr_number);
-    match git_funcs::get_pr_info(&owner, &repo, pr_number).await {
-        Ok(pr_info) => {
-            let mut output = String::new();
-            for file in pr_info.files {
+    match git_funcs::get_pr(&owner, &repo, pr_number).await {
+        Ok(pr) => {
+            let mut output = String::from(format!("# {}\n\n", pr.info.title));
+            utils::append_with_newline(
+                &format!("{}\n # Changed Files:\n", pr.info.body),
+                &mut output,
+            );
+            for file in pr.files {
                 utils::append_with_newline(
                     &format!("{} -- {}", &file.filename, &file.status),
                     &mut output,

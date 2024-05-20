@@ -12,6 +12,9 @@ pub struct Args {
     /// Run locally inside git repository, comparing HEAD against main (branch named `main` must exist)
     #[arg(short, long, action = clap::ArgAction::SetTrue)]
     pub local: bool,
+    /// Provide implementation details for the PR description
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    pub details: bool,
 }
 
 pub fn append_with_newline(new_str: &str, buffer: &mut String) {

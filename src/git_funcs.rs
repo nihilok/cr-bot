@@ -12,7 +12,14 @@ pub struct File {
     pub status: String,
 }
 
+#[derive(Deserialize, Debug)]
 pub struct PRInfo {
+    pub title: String,
+    pub body: String,
+}
+
+pub struct PR {
+    pub info: PRInfo,
     pub files: Vec<File>,
 }
 
@@ -67,29 +74,39 @@ pub fn get_git_diff_patch() -> Result<String, git2::Error> {
     Ok(diff_str)
 }
 
-pub async fn get_pr_info(
+pub async fn get_pr(
     owner: &str,
     repo: &str,
     pr_number: u32,
-) -> Result<PRInfo, Box<dyn std::error::Error>> {
+) -> Result<PR, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let pr_url = format!(
+        "https://api.github.com/repos/{}/{}/pulls/{}",
+        owner, repo, pr_number
+    );
+    let files_url = format!(
         "https://api.github.com/repos/{}/{}/pulls/{}/files",
         owner, repo, pr_number
     );
 
     // Try to get the Bearer token from the environment variable
     let token = env::var("GH_PR_TOKEN");
-    let request = client.get(&pr_url).header("User-Agent", "request");
+    let pr_request = client.get(&pr_url).header("User-Agent", "request");
+    let files_request = client.get(&files_url).header("User-Agent", "request");
 
     // If the token exists, add the Authorization header
-    let request = match token {
-        Ok(token) => request.header(AUTHORIZATION, format!("Bearer {}", token)),
-        Err(_) => request,
+    let pr_request = match &token {
+        Ok(token) => pr_request.header(AUTHORIZATION, format!("Bearer {}", token)),
+        Err(_) => pr_request,
+    };
+    let files_request = match token {
+        Ok(token) => files_request.header(AUTHORIZATION, format!("Bearer {}", token)),
+        Err(_) => files_request,
     };
 
-    let response = request.send().await?;
-    if response.status() != StatusCode::OK {
+    let pr_response = pr_request.send().await?;
+    let response = files_request.send().await?;
+    if response.status() != StatusCode::OK || pr_response.status() != StatusCode::OK {
         let error_message = if response.status() == StatusCode::NOT_FOUND
             || response.status() == StatusCode::UNAUTHORIZED
         {
@@ -103,14 +120,11 @@ pub async fn get_pr_info(
 
         return Err(error_message.into());
     }
+    let pr_info: PRInfo = pr_response.json().await?;
+    let files: Vec<File> = response.json().await?;
 
-    let files_info: Vec<File> = response.json().await?;
-
-    let mut files = Vec::new();
-
-    for file_info in files_info {
-        files.push(file_info);
-    }
-
-    Ok(PRInfo { files })
+    Ok(PR {
+        info: pr_info,
+        files,
+    })
 }

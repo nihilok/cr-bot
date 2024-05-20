@@ -7,6 +7,15 @@ use colored::Colorize;
 use std::process;
 use utils::Args;
 
+fn exit_msg(message: &str) -> ! {
+    eprintln!("{}", message);
+    process::exit(1);
+}
+
+fn exit_err(message: &str, err: Box<dyn std::error::Error>) -> ! {
+    exit_msg(&format!("{} {}", message, err));
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
@@ -22,8 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     return Ok(());
                 }
                 Err(e) => {
-                    eprintln!("Failed to analyse code by implementation details: {}", e);
-                    process::exit(1);
+                    exit_err("Failed to analyse code by implementation details", e);
                 }
             }
         } else {
@@ -32,27 +40,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     return Ok(());
                 }
                 Err(e) => {
-                    eprintln!("Failed to analyse code by code review: {}", e);
-                    process::exit(1);
+                    exit_err("Failed to analyse code by code review", e);
                 }
             }
         }
     }
 
-    let owner = args.owner.unwrap_or_else(|| {
-        eprintln!("Owner argument is missing. Run with --help for usage.");
-        process::exit(1);
-    });
+    let owner = args
+        .owner
+        .unwrap_or_else(|| exit_msg("Owner argument is missing. Run with --help for usage."));
 
-    let repo = args.repo.unwrap_or_else(|| {
-        eprintln!("Repo argument is missing. Run with --help for usage.");
-        process::exit(1);
-    });
+    let repo = args
+        .repo
+        .unwrap_or_else(|| exit_msg("Repo argument is missing. Run with --help for usage."));
 
-    let pr_number = args.pr.unwrap_or_else(|| {
-        eprintln!("PR number argument is missing. Run with --help for usage.");
-        process::exit(1);
-    });
+    let pr_number = args
+        .pr
+        .unwrap_or_else(|| exit_msg("PR number argument is missing. Run with --help for usage."));
 
     println!("Analysing PR changes: {}/{} #{}\n", owner, repo, pr_number);
     match git_funcs::get_pr(&owner, &repo, pr_number).await {
@@ -75,26 +79,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(_) => {
                         return Ok(());
                     }
-                    Err(e) => {
-                        eprintln!("Failed to analyze code: {}", e);
-                        process::exit(1);
-                    }
+                    Err(e) => exit_err("Failed to analyze code", e),
                 }
             } else {
                 match ai_funcs::code_review(output).await {
                     Ok(_) => {
                         return Ok(());
                     }
-                    Err(e) => {
-                        eprintln!("Failed to analyze code: {}", e);
-                        process::exit(1);
-                    }
+                    Err(e) => exit_err("Failed to analyze code", e),
                 }
             }
         }
-        Err(e) => {
-            eprintln!("{}", &format!("Failed to get PR info: {}", e).red());
-            process::exit(1);
-        }
+        Err(e) => exit_msg(&format!("Failed to get PR info: {}", e).red()),
     }
 }

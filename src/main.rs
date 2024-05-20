@@ -15,12 +15,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Analysing local changes...\n");
         let diff = git_funcs::get_git_diff_patch()?;
         let prompt = format!("\n{}", diff);
-        let review_comments = ai_funcs::code_review(prompt).await;
-        match review_comments {
-            Ok(_) => return Ok(()),
-            Err(e) => {
-                eprintln!("Failed to analyse code: {}", e);
-                process::exit(1);
+
+        if args.details {
+            match ai_funcs::implementation_details(prompt.clone()).await {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    eprintln!("Failed to analyse code by implementation details: {}", e);
+                    process::exit(1);
+                }
+            }
+        } else {
+            match ai_funcs::code_review(prompt).await {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    eprintln!("Failed to analyse code by code review: {}", e);
+                    process::exit(1);
+                }
             }
         }
     }
@@ -55,10 +69,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
                 utils::append_with_newline(&file.patch, &mut output);
             }
-            let review_result = ai_funcs::code_review(output).await;
-            if let Err(e) = review_result {
-                eprintln!("Failed to analyze code: {}", e);
-                process::exit(1);
+
+            if args.details {
+                match ai_funcs::implementation_details(output).await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to analyze code: {}", e);
+                        process::exit(1);
+                    }
+                }
+            } else {
+                match ai_funcs::code_review(output).await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to analyze code: {}", e);
+                        process::exit(1);
+                    }
+                }
             }
         }
         Err(e) => {
@@ -66,6 +97,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             process::exit(1);
         }
     }
-
-    Ok(())
 }

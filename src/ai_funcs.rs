@@ -17,14 +17,19 @@ const MODEL: &'static str = "gpt-4o";
 
 const OPENAI_API_KEY_VAR_NAME: &'static str = "CR_BOT_OPENAI_API_KEY";
 
+/// Helper function to create an OpenAI client using the appropriate API key
 fn get_client() -> async_openai::Client<OpenAIConfig> {
     let token = env::var(OPENAI_API_KEY_VAR_NAME);
     match token {
         Ok(token) => async_openai::Client::with_config(OpenAIConfig::new().with_api_key(token)),
-        Err(_) => async_openai::Client::new(),
+        Err(_) => {
+            println!("No '{}' environment variable supplied; falling back to default 'OPENAI_API_KEY' environment variable.", OPENAI_API_KEY_VAR_NAME);
+            async_openai::Client::new()
+        }
     }
 }
 
+/// Print stream to stdout as it is returned (does not wait for full response before starting printing)
 async fn print_stream(
     stream: &mut ChatCompletionResponseStream,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -46,7 +51,9 @@ async fn print_stream(
     }
     Ok(())
 }
-pub async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error>> {
+
+/// Review PR changes (or local changes on current branch) supplied as `input`
+pub async fn code_review(input: String) -> Result<(), Box<dyn std::error::Error>> {
     let client = get_client();
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(COMPLETION_TOKENS)
@@ -65,7 +72,7 @@ pub async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error
                 .build()?
                 .into(),
             ChatCompletionRequestUserMessageArgs::default()
-                .content(output.as_str())
+                .content(input.as_str())
                 .build()?
                 .into(),
         ])
@@ -76,7 +83,8 @@ pub async fn code_review(output: String) -> Result<(), Box<dyn std::error::Error
     print_stream(&mut stream).await
 }
 
-pub async fn implementation_details(output: String) -> Result<(), Box<dyn std::error::Error>> {
+/// Describe PR changes (or local changes on current branch) supplied as `input`
+pub async fn implementation_details(input: String) -> Result<(), Box<dyn std::error::Error>> {
     let client = get_client();
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(COMPLETION_TOKENS)
@@ -97,7 +105,7 @@ pub async fn implementation_details(output: String) -> Result<(), Box<dyn std::e
                 .build()?
                 .into(),
             ChatCompletionRequestUserMessageArgs::default()
-                .content(output.as_str())
+                .content(input.as_str())
                 .build()?
                 .into(),
         ])

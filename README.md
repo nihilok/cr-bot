@@ -1,7 +1,7 @@
 # Code Review Bot (cr-bot)
 
 The `cr-bot` is a command line application developed in Rust.
-It leverages the GPT4 model to review code.
+It leverages OpenAI models (default gpt-4o-mini) to review changes, either from a PR on GitHub, or a local git diff.
 
 ## Installation
 
